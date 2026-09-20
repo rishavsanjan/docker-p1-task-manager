@@ -1,19 +1,20 @@
-import express from "express";
-import fs from "fs"
-const TASK_FILE = "tasks.json";
+
+import express from "express"
+import { Pool } from "pg"
 
 const app = express();
-app.use(express.json());
 
 const PORT = 5000;
 
-function getTasks() {
-  return JSON.parse(fs.readFileSync(TASK_FILE, "utf-8"));
-}
+app.use(express.json());
 
-function saveTasks(tasks) {
-  fs.writeFileSync(TASK_FILE, JSON.stringify(tasks, null, 2));
-}
+const pool = new Pool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME
+});
 
 app.get("/", (req, res) => {
   res.json({
@@ -21,27 +22,38 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/tasks", (req, res) => {
-  const tasks = getTasks();
+app.get("/tasks", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM tasks ORDER BY id"
+    );
 
-  res.json(tasks)
-})
-
-app.post("/tasks", (req, res) => {
-  const tasks = getTasks();
-
-  const task = {
-    id: Date.now(),
-    title: req.body.title
-  };
-
-  tasks.push(task);
-
-  saveTasks(tasks);
-
-  res.status(201).json(task);
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "Database error"
+    });
+  }
 });
 
+app.post("/tasks", async (req, res) => {
+  try {
+    const { title } = req.body;
+
+    const result = await pool.query(
+      "INSERT INTO tasks (title) VALUES ($1) RETURNING *",
+      [title]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "Database error"
+    });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
