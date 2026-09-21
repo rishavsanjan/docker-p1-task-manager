@@ -1,0 +1,49 @@
+services:
+
+  db:
+    image: postgres:17-alpine
+    container_name: task-db
+
+    environment:
+      POSTGRES_USER: taskuser
+      POSTGRES_PASSWORD: taskpassword
+      POSTGRES_DB: taskdb
+
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+    networks:
+      - task-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskuser -d taskdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: task-backend
+
+    ports:
+      - "5000:5000"
+
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: taskuser
+      DB_PASSWORD: taskpassword
+      DB_NAME: taskdb
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - task-network
+
+volumes:
+  db-data:
+
+networks:
+  task-network:
