@@ -3,6 +3,7 @@ services:
   db:
     image: postgres:17-alpine
     container_name: task-db
+    restart: unless-stopped
 
     environment:
       POSTGRES_USER: taskuser
@@ -24,6 +25,7 @@ services:
   backend:
     build: ./backend
     container_name: task-backend
+    restart: unless-stopped
 
     ports:
       - "5000:5000"
